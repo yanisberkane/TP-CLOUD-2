@@ -31,6 +31,17 @@ namespace MVC.Data
             }
         }
 
+
+        public virtual async Task<Results<Ok<PostReadDTO>, NotFound>> GetAPIPost(Guid id)
+        {
+            var post = await _context.Set<Post>().FindAsync(id);
+            if (post == null)
+            {
+                return TypedResults.NotFound();
+            }
+            return TypedResults.Ok(new PostReadDTO(post));
+        }
+
         // Post methods
         public virtual async Task<List<PostReadDTO>> GetPostsIndex(int pageNumber, int pageSize)
         {

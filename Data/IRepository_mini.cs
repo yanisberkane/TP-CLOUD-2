@@ -7,6 +7,7 @@ namespace MVC.Data
     {
         // API
         Task<Results<Created<PostReadDTO>, BadRequest, InternalServerError>> CreateAPIPost(Post post);
+        Task<Results<Ok<PostReadDTO>, NotFound>> GetAPIPost(Guid id);
 
         // Post
         Task<List<PostReadDTO>> GetPostsIndex(int pageNumber, int pageSize);

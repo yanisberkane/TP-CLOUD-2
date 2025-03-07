@@ -6,6 +6,7 @@ using MVC.Models;
 using MVC.Data;
 using Microsoft.AspNetCore.Mvc;
 using MVC.Business;
+using Azure.Storage.Blobs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,7 +43,13 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-//API 
+string storageConnectionString = "UseDevelopmentStorage=true";
+
+//API
+
+// Posts
+
+// Ajouter un post
 app.MapPost("/Posts/Add", async (IRepository_mini repo, IFormFile Image, HttpRequest request, BlobController blob) =>
 {
     try
@@ -50,8 +57,27 @@ app.MapPost("/Posts/Add", async (IRepository_mini repo, IFormFile Image, HttpReq
         PostCreateDTO post = new PostCreateDTO(request.Form["Title"]!, request.Form["Category"]!, request.Form["User"]!, Image);
         Guid guid = Guid.NewGuid();
 
-        string Url = await blob.PushImageToBlob(post.Image!, guid);
+        //string Url = await blob.PushImageToBlob(post.Image!, guid);
+        string blobContainerName = "images"; // The name of your blob container
 
+        // Connect to Azurite Blob Service
+        var blobServiceClient = new BlobServiceClient(storageConnectionString);
+        var blobContainerClient = blobServiceClient.GetBlobContainerClient(blobContainerName);
+
+        // Create container if it doesn't exist
+        await blobContainerClient.CreateIfNotExistsAsync();
+
+        // Create a unique blob name
+        string blobName = $"{guid}.jpg";
+
+        // Upload the image to the blob container
+        var blobClient = blobContainerClient.GetBlobClient(blobName);
+        using (var stream = Image.OpenReadStream())
+        {
+            await blobClient.UploadAsync(stream, overwrite: true);
+        }
+
+        string Url = blobClient.Uri.ToString();
         Post Post = new Post { Title = post.Title!, Category = post.Category, User = post.User!, BlobImage = guid, Url = Url };
 
         return await repo.CreateAPIPost(Post);
@@ -63,6 +89,71 @@ app.MapPost("/Posts/Add", async (IRepository_mini repo, IFormFile Image, HttpReq
     }
 }).DisableAntiforgery();
 
+
+// Obtenir un post
+app.MapGet("/Posts/{id}", async (IRepository_mini repo, Guid id) =>
+{
+    return await repo.GetAPIPost(id);
+});
+
+// Obtenir les posts par page
+app.MapGet("/Posts", async (IRepository_mini repo, uint pageNumber, uint pageSize) =>
+{
+    return await repo.GetPostsIndex((int)pageNumber, (int)pageSize);
+});
+
+// Liker un post
+app.MapPost("/Posts/IncrementPostLike/{id}", async (IRepository_mini repo, Guid id) =>
+{
+    await repo.IncrementPostLike(id);
+    return Results.Ok();
+});
+
+// Disliker un post
+app.MapPost("/Posts/IncrementPostDislike/{id}", async (IRepository_mini repo, Guid id) =>
+{
+    await repo.IncrementPostDislike(id);
+    return Results.Ok();
+});
+
+// Commentaires
+
+// Ajouter un commentaire
+app.MapPost("/Comments/Add", async (IRepository_mini repo, [FromForm] string PostId, [FromForm] string User, [FromForm] string Commentaire) =>
+{
+    try
+    {
+        Comment comment = new Comment { PostId = Guid.Parse(PostId), User = User, Commentaire = Commentaire };
+        await repo.AddComments(comment);
+        return Results.Ok();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine(ex.ToString());
+        return TypedResults.BadRequest();
+    }
+}).DisableAntiforgery();
+
+
+// Obtenir les commentaires
+app.MapGet("/Comments/{id}", async (IRepository_mini repo, Guid id) =>
+{
+    return await repo.GetCommentsIndex(id);
+});
+
+// Liker un commentaire
+app.MapPost("/Comments/IncrementCommentLike/{id}", async (IRepository_mini repo, Guid id) =>
+{
+    await repo.IncrementCommentLike(id);
+    return Results.Ok();
+});
+
+// Disliker un commentaire
+app.MapPost("/Comments/IncrementCommentDislike/{id}", async (IRepository_mini repo, Guid id) =>
+{
+    await repo.IncrementCommentDislike(id);
+    return Results.Ok();
+});
 
 app.Run();
 
