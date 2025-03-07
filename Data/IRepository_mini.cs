@@ -10,16 +10,15 @@ namespace MVC.Data
         Task<Results<Ok<PostReadDTO>, NotFound>> GetAPIPost(Guid id);
 
         // Post
-        Task<List<PostReadDTO>> GetPostsIndex(int pageNumber, int pageSize);
-        Task<int> GetPostsCount();
-        Task Add(Post post);
-        Task IncrementPostLike(Guid id);
-        Task IncrementPostDislike(Guid id);
+        Task<Results<Ok<List<PostReadDTO>>, NotFound>> GetPostsIndex(int pageNumber, int pageSize);
+
+        Task<Results<Ok, NotFound>> IncrementPostLike(Guid id);
+        Task<Results<Ok, NotFound>> IncrementPostDislike(Guid id);
 
         // Comments
-        Task<List<CommentReadDTO>> GetCommentsIndex(Guid id);
-        Task AddComments(Comment comment);
-        Task IncrementCommentLike(Guid id);
-        Task IncrementCommentDislike(Guid id);
+        Task<Results<Ok<List<CommentReadDTO>>, NotFound>> GetCommentsIndex(Guid id);
+        Task<Results<Created<CommentReadDTO>, BadRequest, InternalServerError, NotFound>> AddComments(Comment comment);
+        Task<Results<Ok, NotFound>> IncrementCommentLike(Guid id);
+        Task<Results<Ok, NotFound>> IncrementCommentDislike(Guid id);
     }
 }

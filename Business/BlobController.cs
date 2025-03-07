@@ -15,37 +15,29 @@ namespace MVC.Business
             _applicationConfiguration = options.Value;
         }
 
-        public async Task<string> PushImageToBlob(IFormFile formFile, Guid imageGuid)
+        public async Task<string> PushImageToBlob(IFormFile Image, Guid guid)
         {
-            // Conversion du fichier recu en IFormFile a Byte[]. 
-            // Ensuite le Byte[] sera envoyer au BlobStorage en utilisant un Guid comme identifiant.
-            // Nous allons garder le Guid et créer un URL.
+            string blobContainerName = "images"; // The name of your blob container
 
-            using (MemoryStream ms = new MemoryStream())
+            // Connect to Azurite Blob Service
+            var blobServiceClient = new BlobServiceClient("UseDevelopmentStorage=true");
+            var blobContainerClient = blobServiceClient.GetBlobContainerClient(blobContainerName);
+
+            // Create container if it doesn't exist
+            await blobContainerClient.CreateIfNotExistsAsync();
+
+            // Create a unique blob name
+            string blobName = $"{guid}.jpg";
+
+            // Upload the image to the blob container
+            var blobClient = blobContainerClient.GetBlobClient(blobName);
+            using (var stream = Image.OpenReadStream())
             {
-                if (ms.Length < 40971520)
-                {
-                    await formFile.CopyToAsync(ms);
-
-                    //Création du service connection au Blob
-                    BlobServiceClient serviceClient = new BlobServiceClient(_applicationConfiguration.BlobConnectionString);
-
-                    //Création du client pour le Blob
-                    BlobContainerClient blobClient = serviceClient.GetBlobContainerClient(_applicationConfiguration.UnvalidatedBlob);
-
-                    //Reinitialize le Stream
-                    ms.Position = 0;
-
-                    //Envoie de l'image sur le blob
-                    await blobClient.UploadBlobAsync(imageGuid.ToString(), ms);
-                    return blobClient.Uri.AbsoluteUri + "/" + imageGuid.ToString();
-                }
-                else
-                {
-                    throw new ExceptionFilesize();
-                }
-
+                await blobClient.UploadAsync(stream, overwrite: true);
             }
+
+            string Url = blobClient.Uri.ToString();
+            return Url;
         }
     }
 

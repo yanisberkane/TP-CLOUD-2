@@ -1,12 +1,8 @@
-//dotnet add package Microsoft.EntityFrameworkCore.InMemory
-//dotnet add package Microsoft.EntityFrameworkCore
-
 using Microsoft.EntityFrameworkCore;
 using MVC.Models;
 using MVC.Data;
 using Microsoft.AspNetCore.Mvc;
 using MVC.Business;
-using Azure.Storage.Blobs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,7 +15,7 @@ builder.Services.AddDbContext<ApplicationDbContextInMemory>(options => options.U
 builder.Services.AddScoped<IRepository_mini, EFRepository_mini_InMemory>();
 
 // Configure ApplicationConfiguration
-//builder.Services.Configure<ApplicationConfiguration>(builder.Configuration.GetSection("ApplicationConfiguration"));
+builder.Services.Configure<ApplicationConfiguration>(builder.Configuration.GetSection("ApplicationConfiguration"));
 
 // Ajouter le service pour BlobController
 builder.Services.AddScoped<BlobController>();
@@ -43,8 +39,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-string storageConnectionString = "UseDevelopmentStorage=true";
-
 //API
 
 // Posts
@@ -57,27 +51,8 @@ app.MapPost("/Posts/Add", async (IRepository_mini repo, IFormFile Image, HttpReq
         PostCreateDTO post = new PostCreateDTO(request.Form["Title"]!, request.Form["Category"]!, request.Form["User"]!, Image);
         Guid guid = Guid.NewGuid();
 
-        //string Url = await blob.PushImageToBlob(post.Image!, guid);
-        string blobContainerName = "images"; // The name of your blob container
+        string Url = await blob.PushImageToBlob(post.Image!, guid);
 
-        // Connect to Azurite Blob Service
-        var blobServiceClient = new BlobServiceClient(storageConnectionString);
-        var blobContainerClient = blobServiceClient.GetBlobContainerClient(blobContainerName);
-
-        // Create container if it doesn't exist
-        await blobContainerClient.CreateIfNotExistsAsync();
-
-        // Create a unique blob name
-        string blobName = $"{guid}.jpg";
-
-        // Upload the image to the blob container
-        var blobClient = blobContainerClient.GetBlobClient(blobName);
-        using (var stream = Image.OpenReadStream())
-        {
-            await blobClient.UploadAsync(stream, overwrite: true);
-        }
-
-        string Url = blobClient.Uri.ToString();
         Post Post = new Post { Title = post.Title!, Category = post.Category, User = post.User!, BlobImage = guid, Url = Url };
 
         return await repo.CreateAPIPost(Post);
@@ -105,15 +80,13 @@ app.MapGet("/Posts", async (IRepository_mini repo, uint pageNumber, uint pageSiz
 // Liker un post
 app.MapPost("/Posts/IncrementPostLike/{id}", async (IRepository_mini repo, Guid id) =>
 {
-    await repo.IncrementPostLike(id);
-    return Results.Ok();
+    return await repo.IncrementPostLike(id);
 });
 
 // Disliker un post
 app.MapPost("/Posts/IncrementPostDislike/{id}", async (IRepository_mini repo, Guid id) =>
 {
-    await repo.IncrementPostDislike(id);
-    return Results.Ok();
+    return await repo.IncrementPostDislike(id);
 });
 
 // Commentaires
@@ -124,8 +97,7 @@ app.MapPost("/Comments/Add", async (IRepository_mini repo, [FromForm] string Pos
     try
     {
         Comment comment = new Comment { PostId = Guid.Parse(PostId), User = User, Commentaire = Commentaire };
-        await repo.AddComments(comment);
-        return Results.Ok();
+        return await repo.AddComments(comment);
     }
     catch (Exception ex)
     {
@@ -144,15 +116,13 @@ app.MapGet("/Comments/{id}", async (IRepository_mini repo, Guid id) =>
 // Liker un commentaire
 app.MapPost("/Comments/IncrementCommentLike/{id}", async (IRepository_mini repo, Guid id) =>
 {
-    await repo.IncrementCommentLike(id);
-    return Results.Ok();
+    return await repo.IncrementCommentLike(id);
 });
 
 // Disliker un commentaire
 app.MapPost("/Comments/IncrementCommentDislike/{id}", async (IRepository_mini repo, Guid id) =>
 {
-    await repo.IncrementCommentDislike(id);
-    return Results.Ok();
+    return await repo.IncrementCommentDislike(id);
 });
 
 app.Run();
