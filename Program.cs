@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using MVC.Models;
 using MVC.Data;
 using Microsoft.AspNetCore.Mvc;
+using MVC.Business;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,11 +17,18 @@ builder.Services.AddOpenApi();
 builder.Services.AddDbContext<ApplicationDbContextInMemory>(options => options.UseInMemoryDatabase("InMemoryDb"));
 builder.Services.AddScoped<IRepository_mini, EFRepository_mini_InMemory>();
 
+// Configure ApplicationConfiguration
+//builder.Services.Configure<ApplicationConfiguration>(builder.Configuration.GetSection("ApplicationConfiguration"));
+
+// Ajouter le service pour BlobController
+builder.Services.AddScoped<BlobController>();
+
 // Ajouter le service pour Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
-    c.OperationFilter<FileUploadOperationFilter>() // Add custom operation filter
-);
+{
+    c.OperationFilter<FileUploadOperationFilter>(); // Ajoute le filtre custom (déjà présent)
+});
 
 var app = builder.Build();
 
@@ -34,23 +42,18 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-
 //API 
-app.MapPost("/Posts/Add", async (IRepository_mini repo,[FromForm] PostCreateDTO post) =>
+app.MapPost("/Posts/Add", async (IRepository_mini repo, IFormFile Image, HttpRequest request, BlobController blob) =>
 {
     try
     {
+        PostCreateDTO post = new PostCreateDTO(request.Form["Title"]!, request.Form["Category"]!, request.Form["User"]!, Image);
         Guid guid = Guid.NewGuid();
 
-        // Test write images
-        string LocalFilePath = @"c:\Robot\" + post.Image.FileName;
+        string Url = await blob.PushImageToBlob(post.Image!, guid);
 
-        using (FileStream stream = new FileStream(LocalFilePath, FileMode.CreateNew))
-        { 
-            await post.Image.CopyToAsync(stream);
-        }
+        Post Post = new Post { Title = post.Title!, Category = post.Category, User = post.User!, BlobImage = guid, Url = Url };
 
-        Post Post = new Post { Title = post.Title, Category = post.Category, User = post.User, BlobImage = guid, Url = LocalFilePath };
         return await repo.CreateAPIPost(Post);
     }
     catch (Exception ex)

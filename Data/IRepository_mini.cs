@@ -7,5 +7,18 @@ namespace MVC.Data
     {
         // API
         Task<Results<Created<PostReadDTO>, BadRequest, InternalServerError>> CreateAPIPost(Post post);
+
+        // Post
+        Task<List<PostReadDTO>> GetPostsIndex(int pageNumber, int pageSize);
+        Task<int> GetPostsCount();
+        Task Add(Post post);
+        Task IncrementPostLike(Guid id);
+        Task IncrementPostDislike(Guid id);
+
+        // Comments
+        Task<List<CommentReadDTO>> GetCommentsIndex(Guid id);
+        Task AddComments(Comment comment);
+        Task IncrementCommentLike(Guid id);
+        Task IncrementCommentDislike(Guid id);
     }
 }
